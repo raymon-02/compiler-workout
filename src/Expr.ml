@@ -50,5 +50,37 @@ let s = update "x" 1 @@ update "y" 2 @@ update "z" 3 @@ update "t" 4 empty
    Takes a state and an expression, and returns the value of the expression in 
    the given state.
 *)
-let eval = failwith "Not implemented yet"
+let rec eval s e =
+  let evalBool b = if b then 1 else 0 in
+  let evalInt i = if i = 0 then false else true in
+  let comp f g x y = f (g x) (g y) in
+  let evalBoolOp op =
+    match op with
+      | "<"  -> ( < )
+      | "<=" -> ( <= )
+      | ">"  -> ( > )
+      | ">=" -> ( >= )
+      | "==" -> ( == )
+      | "!=" -> ( <> )
+      | "&&" -> comp ( && ) evalInt
+      | "!!" -> comp ( || ) evalInt
+      | _    -> failwith "Unsupported operator" in
+  let evalOp op = 
+    match op with
+      | "+" -> ( + )
+      | "-" -> ( - )
+      | "*" -> ( * )
+      | "/" -> ( / )
+      | "%" -> ( mod )
+      | _   -> fun x y -> evalBool @@ evalBoolOp op x y in
+  match e with
+    | Var x             -> s x
+    | Const c           -> c
+    | Binop (op, x, y)  ->
+      let ex = eval s x in
+      let ey = eval s y in
+      evalOp op ex ey
+
+
+
                     
