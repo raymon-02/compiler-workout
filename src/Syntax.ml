@@ -34,6 +34,33 @@ module Expr =
     *)
     let update x v s = fun y -> if x = y then v else s y
 
+    (* Bin operation evaluator
+
+          val evalOp : op -> (int -> int -> int)
+    *)
+    let evalOp op =
+      let evalBool b = if b then 1 else 0 in
+      let evalInt i = if i = 0 then false else true in
+      let comp f g x y = f (g x) (g y) in
+      let evalBoolOp op =
+        match op with
+          | "<"  -> ( < )
+          | "<=" -> ( <= )
+          | ">"  -> ( > )
+          | ">=" -> ( >= )
+          | "==" -> ( == )
+          | "!=" -> ( <> )
+          | "&&" -> comp ( && ) evalInt
+          | "!!" -> comp ( || ) evalInt
+          | _    -> failwith "Unsupported operator" in
+      match op with
+        | "+" -> ( + )
+        | "-" -> ( - )
+        | "*" -> ( * )
+        | "/" -> ( / )
+        | "%" -> ( mod )
+        | _   -> fun x y -> evalBool @@ evalBoolOp op x y
+
     (* Expression evaluator
 
           val eval : state -> t -> int
@@ -41,8 +68,14 @@ module Expr =
        Takes a state and an expression, and returns the value of the expression in 
        the given state.
     *)
-    let eval _ = failwith "Not implemented yet"
-
+    let rec eval s e =
+      match e with
+        | Var x             -> s x
+        | Const c           -> c
+        | Binop (op, x, y)  ->
+          let ex = eval s x in
+          let ey = eval s y in
+          evalOp op ex ey
   end
                     
 (* Simple statements: syntax and sematics *)
@@ -65,6 +98,19 @@ module Stmt =
 
        Takes a configuration and a statement, and returns another configuration
     *)
-    let eval _ = failwith "Not implemented yet"
+    let rec eval c s =
+      match (c, s) with
+        | ((st, i, o), Assign (x, e)) -> 
+            let ev = Expr.eval st e in
+            (Expr.update x ev st, i, o)
+        | ((st, z::i, o), Read x)     -> (Expr.update x z st, i, o)
+        | ((st, i, o), Write e)       -> 
+            let ev = Expr.eval st e in
+            (st, i, o @ [ev])
+        | (co, Seq (s1, s2))          ->
+            let sc1 = eval co s1 in
+            eval sc1 s2
+        | _                           -> failwith "Unsupported configuration and statement"
                                                          
   end
+ 
