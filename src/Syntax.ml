@@ -37,6 +37,7 @@ module Expr =
     (* Bin operation evaluator
 
           val evalOp : op -> (int -> int -> int)
+          
     *)
     let evalOp op =
       let evalBool b = if b then 1 else 0 in
