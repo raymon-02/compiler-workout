@@ -24,7 +24,16 @@ type config = int list * Stmt.config
 
    Takes a configuration and a program, and returns a configuration as a result
  *)                         
-let eval _ = failwith "Not yet implemented"
+let rec eval c p =
+  match (c, p) with
+    | ((st, co), [])                   -> (st, co)
+    | ((y::x::st, co), (BINOP op)::ps) -> eval ((Language.Expr.evalOp op x y)::st, co) ps
+    | ((st, co), (CONST x)::ps)        -> eval (x::st, co) ps
+    | ((st, (s, z::i, o)), READ::ps)   -> eval (z::st, (s, i, o)) ps
+    | ((z::st, (s, i, o)), WRITE::ps)  -> eval (st, (s, i, o @ [z])) ps
+    | ((st, (s, i, o)), (LD x)::ps)    -> eval ((s x)::st, (s, i, o)) ps
+    | ((z::st, (s, i, o)), (ST x)::ps) -> eval (st, (Language.Expr.update x z s, i, o)) ps
+    | _                                -> failwith "Unsupported configuration and program"
 
 (* Top-level evaluation
 
@@ -41,6 +50,17 @@ let run p i = let (_, (_, _, o)) = eval ([], (Expr.empty, i, [])) p in o
    Takes a program in the source language and returns an equivalent program for the
    stack machine
  *)
-let compile _ = failwith "Not yet implemented"
-
-                         
+let rec compile s =
+  let rec compile_e e =
+    match e with
+      | Language.Expr.Const n            -> [CONST n]
+      | Language.Expr.Var x              -> [LD x]
+      | Language.Expr.Binop (op, e1, e2) -> compile_e e1 @ compile_e e2 @ [BINOP op]
+      | _                              -> failwith "Unsupported expression"
+  in
+  match s with
+    | Language.Stmt.Assign (x, e) -> compile_e e @ [ST x]
+    | Language.Stmt.Read x        -> [READ; ST x]
+    | Language.Stmt.Write e       -> compile_e e @ [WRITE]
+    | Language.Stmt.Seq (s1, s2)  -> compile s1 @ compile s2
+    | _                         -> failwith "Unsupported statement"
