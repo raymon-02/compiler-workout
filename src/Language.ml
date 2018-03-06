@@ -98,7 +98,7 @@ module Expr =
           [|
             `Lefta , ostap_binop_map ["!!"];
             `Lefta , ostap_binop_map ["&&"];
-            `Nona  , ostap_binop_map ["<"; "<="; "=="; "!="; ">"; ">="];
+            `Nona  , ostap_binop_map ["<="; ">="; "<"; ">"; "=="; "!="];
             `Lefta , ostap_binop_map ["+"; "-"];
             `Lefta , ostap_binop_map ["*"; "/"; "%"]
           |]
