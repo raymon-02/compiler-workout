@@ -81,10 +81,19 @@ open SM
    of x86 instructions
 *)
 let rec compile env code = 
-  let move x y =
-    match x, y with
-    | M _, S _ | S _, S _ -> [Mov (x, eax); Mov (eax, y)]
-    | _, _                -> [Mov (x, y)]
+  let mem x = 
+    match x with
+    | M _ -> true
+    | S _ -> true
+    | _   -> false
+  in
+  let move x y = if mem x && mem y
+    then [Mov (x, eax); Mov (eax, y)]
+    else [Mov (x, y)]
+  in
+  let bin op x y = if mem x && mem y
+    then [Mov (y, eax); Binop (op, x, eax); Mov (eax, y)]
+    else [Binop (op, x, y)]
   in
   let cmp_op op =
     match op with
@@ -106,20 +115,21 @@ let rec compile env code =
           let bin_asm = 
             match op with
             | "+" | "-" | "*"                       -> 
-              [Mov (sy, eax); Binop (op, sx, eax)] @ (move eax r)
+              (bin op sx sy) @ (move sy r)
             | "/"                                   -> 
-              [Mov (sy, eax); Cltd; IDiv sx] @ (move eax r)
+              [Mov (sy, eax); Cltd; IDiv sx; Mov (eax, r)]
             | "%"                                   -> 
-              [Mov (sy, eax); Cltd; IDiv sx] @ (move edx r)
+              [Mov (sy, eax); Cltd; IDiv sx; Mov (edx, r)]
             | "<" | "<=" | ">" | ">=" | "==" | "!=" -> 
-              [Mov (sy, edx); Binop ("cmp", sx, edx); Mov (L 0, eax); Set (cmp_op op, "%al")] @ (move eax r)
+              (bin "cmp" sx sy) @ [Mov (L 0, eax); Set (cmp_op op, "%al"); Mov (eax, r)]
             | "&&" | "!!"                           ->
               [
                 Mov (L 0, eax); Mov (L 0, edx); 
                 Binop ("cmp", L 0, sx); Set ("nz", "%al");
                 Binop ("cmp", L 0, sy); Set ("nz", "%dl");
-                Binop (op, eax, edx)
-              ] @ (move eax r)
+                Binop (op, eax, edx);
+                Mov (edx, r)
+              ]
           in
           env, bin_asm
         | READ     ->
