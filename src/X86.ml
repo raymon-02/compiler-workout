@@ -143,10 +143,12 @@ let rec compile env code =
           env, [Mov (L n, s)]
         | LD x     ->
           let s, env = (env#global x)#allocate in
-          env, [Mov (M ("global_" ^ x), s)]
+          let m = M (env#loc x) in
+          env, move m s 
         | ST x     ->
           let s, env = (env#global x)#pop in
-          env, [Mov (s, M ("global_" ^ x))]
+          let m = M (env#loc x) in
+          env, move s m
         | _        -> failwith "Not supported instruction"
       in
       let env, asms = compile env instrs in
