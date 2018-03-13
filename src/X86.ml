@@ -80,7 +80,68 @@ open SM
    Take an environment, a stack machine program, and returns a pair --- the updated environment and the list
    of x86 instructions
 *)
-let compile env code = failwith "Not yet implemented"
+let rec compile env code = 
+  let move x y =
+    match x, y with
+    | M _, S _ | S _, S _ -> [Mov (x, eax); Mov (eax, y)]
+    | _, _                -> [Mov (x, y)]
+  in
+  let cmp_op op =
+    match op with
+    | "<"  -> "l"  
+    | "<=" -> "le" 
+    | ">"  -> "g"
+    | ">=" -> "ge"
+    | "==" -> "e"
+    | "!=" -> "ne"
+  in
+  match code with
+  | []            -> env, []
+  | instr::instrs ->
+      let env, asm = 
+        match instr with
+        | BINOP op ->
+          let sx, sy, env = env#pop2 in
+          let r, env = env#allocate in
+          let bin_asm = 
+            match op with
+            | "+" | "-" | "*"                       -> 
+              [Mov (sy, eax); Binop (op, sx, eax)] @ (move eax r)
+            | "/"                                   -> 
+              [Mov (sy, eax); Cltd; IDiv sx] @ (move eax r)
+            | "%"                                   -> 
+              [Mov (sy, eax); Cltd; IDiv sx] @ (move edx r)
+            | "<" | "<=" | ">" | ">=" | "==" | "!=" -> 
+              [Mov (sy, edx); Binop (op, sx, edx); Mov (L 0, eax); Set (cmp_op op, "%al")] @ (move eax r)
+            | "&&" | "!!"                           ->
+              [
+                Mov (L 0, eax); Mov (L 0, edx); 
+                Binop ("cmp", L 0, sx); Set ("nz", "%al");
+                Binop ("cmp", L 0, sy); Set ("nz", "%dl");
+                Binop (op, eax, edx)
+              ] @ (move eax r)
+          in
+          env, bin_asm
+        | READ     ->
+          let s, env = env#allocate in
+          env, [Call "Lread"; Mov (eax, s)]
+        | WRITE    ->
+          let s, env = env#pop in
+          env, [Push s; Call "Lwrite"; Pop eax]
+        | CONST n  ->
+          let s, env = env#allocate in
+          env, [Mov (L n, s)]
+        | LD x     ->
+          let s, env = (env#global x)#allocate in
+          env, [Mov (M ("global_" ^ x), s)]
+        | ST x     ->
+          let s, env = (env#global x)#pop in
+          env, [Mov (s, M ("global_" ^ x))]
+        | _        -> failwith "Not supported instruction"
+      in
+      let env, asms = compile env instrs in
+      env, asm @ asms
+      
 
 (* A set of strings *)           
 module S = Set.Make (String)
