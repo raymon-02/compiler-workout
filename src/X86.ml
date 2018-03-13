@@ -112,7 +112,7 @@ let rec compile env code =
             | "%"                                   -> 
               [Mov (sy, eax); Cltd; IDiv sx] @ (move edx r)
             | "<" | "<=" | ">" | ">=" | "==" | "!=" -> 
-              [Mov (sy, edx); Binop (op, sx, edx); Mov (L 0, eax); Set (cmp_op op, "%al")] @ (move eax r)
+              [Mov (sy, edx); Binop ("cmp", sx, edx); Mov (L 0, eax); Set (cmp_op op, "%al")] @ (move eax r)
             | "&&" | "!!"                           ->
               [
                 Mov (L 0, eax); Mov (L 0, edx); 
